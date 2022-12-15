@@ -72,10 +72,10 @@ namespace Packages.GradientTextureGenerator.Runtime
                     float tHorizontal = (float) x / _width;
 
                     Color color = _useTwoGradients
-                            ? _horizontalTop.Evaluate(tHorizontal)
-                            : Color.Lerp(_horizontalBottom.Evaluate(tHorizontal),
+                            ? Color.Lerp(_horizontalBottom.Evaluate(tHorizontal),
                                     _horizontalTop.Evaluate(tHorizontal),
-                                    tVertical);
+                                    tVertical)
+                            : _horizontalTop.Evaluate(tHorizontal);
 
                     color = useRGB && isLinear ? color.linear : color;
                     _texture.SetPixel(x, y, color);
