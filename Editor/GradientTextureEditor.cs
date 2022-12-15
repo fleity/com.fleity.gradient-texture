@@ -14,11 +14,37 @@ namespace Packages.GradientTextureGenerator.Editor
         GradientTexture _gradientTexture;
         UnityEditor.Editor _editor;
 
+        private SerializedProperty _scriptProp;
+        private SerializedProperty _resolutionProp;
+        private SerializedProperty _sRGBProp;
+        private SerializedProperty _useTwoGradientsProp;
+        private SerializedProperty _horizontalTopProp;
+        private SerializedProperty _horizontalBottomProp;
+        private SerializedProperty _verticalLerpProp;
+        
+        private readonly static string[] propertiesToExclude =
+        {
+                "m_Script",
+                "_resolution",
+                "_sRGB",
+                "_useTwoGradients",
+                "_horizontalTop",
+                "_horizontalBottom",
+                "_verticalLerp",
+        };
+
         public override bool HasPreviewGUI() => true;
 
         void OnEnable()
         {
             _gradientTexture = target as GradientTexture;
+            _scriptProp = serializedObject.FindProperty("m_Script");
+            _resolutionProp = serializedObject.FindProperty("_resolution");
+            _sRGBProp = serializedObject.FindProperty("_sRGB");
+            _useTwoGradientsProp = serializedObject.FindProperty("_useTwoGradients");
+            _horizontalTopProp = serializedObject.FindProperty("_horizontalTop");
+            _horizontalBottomProp = serializedObject.FindProperty("_horizontalBottom");
+            _verticalLerpProp = serializedObject.FindProperty("_verticalLerp");
         }
 
         public override void OnInspectorGUI()
@@ -27,8 +53,25 @@ namespace Packages.GradientTextureGenerator.Editor
             {
                 (_gradientTexture as IGradientTextureForEditor).CreateTexture();
             }
+            
+            serializedObject.Update();
 
-            base.OnInspectorGUI();
+            EditorGUI.BeginDisabledGroup(true);
+            EditorGUILayout.PropertyField(_scriptProp);
+            EditorGUI.EndDisabledGroup();
+            
+            EditorGUILayout.PropertyField(_resolutionProp);
+            EditorGUILayout.PropertyField(_sRGBProp);
+            EditorGUILayout.PropertyField(_useTwoGradientsProp);
+            EditorGUILayout.PropertyField(_horizontalTopProp);
+            
+            EditorGUI.BeginDisabledGroup(!_useTwoGradientsProp.boolValue);
+            EditorGUILayout.PropertyField(_horizontalBottomProp);
+            EditorGUILayout.PropertyField(_verticalLerpProp);
+            EditorGUI.EndDisabledGroup();
+
+            DrawPropertiesExcluding(serializedObject, propertiesToExclude);
+            serializedObject.ApplyModifiedProperties();
 
             string buttonText = "Encode to PNG" + (targets.Length > 1 ? $" ({targets.Length})" : "");
 

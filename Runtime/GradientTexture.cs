@@ -26,9 +26,10 @@ namespace Packages.GradientTextureGenerator.Runtime
     {
         [SerializeField] Vector2Int _resolution = new Vector2Int(256, 256);
         [SerializeField] bool _sRGB = true;
-        [SerializeField] AnimationCurve _verticalLerp = AnimationCurve.Linear(0, 0, 1, 1);
+        [SerializeField] bool _useTwoGradients = true;
         [SerializeField, GradientUsage(true)] Gradient _horizontalTop = GetDefaultGradient();
         [SerializeField, GradientUsage(true)] Gradient _horizontalBottom = GetDefaultGradient();
+        [SerializeField] AnimationCurve _verticalLerp = AnimationCurve.Linear(0, 0, 1, 1);
         [SerializeField, HideInInspector] Texture2D _texture = default;
 
         public Texture2D GetTexture() => _texture;
@@ -70,9 +71,11 @@ namespace Packages.GradientTextureGenerator.Runtime
                 {
                     float tHorizontal = (float) x / _width;
 
-                    Color color = Color.Lerp(_horizontalBottom.Evaluate(tHorizontal),
-                        _horizontalTop.Evaluate(tHorizontal),
-                        tVertical);
+                    Color color = _useTwoGradients
+                            ? _horizontalTop.Evaluate(tHorizontal)
+                            : Color.Lerp(_horizontalBottom.Evaluate(tHorizontal),
+                                    _horizontalTop.Evaluate(tHorizontal),
+                                    tVertical);
 
                     color = useRGB && isLinear ? color.linear : color;
                     _texture.SetPixel(x, y, color);
