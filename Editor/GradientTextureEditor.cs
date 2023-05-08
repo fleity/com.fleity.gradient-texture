@@ -11,22 +11,26 @@ namespace Packages.GradientTextureGenerator.Editor
     [CustomEditor(typeof(GradientTexture), true), CanEditMultipleObjects]
     public class GradientTextureEditor : UnityEditor.Editor
     {
-        GradientTexture _gradientTexture;
-        UnityEditor.Editor _editor;
+        private GradientTexture _gradientTexture;
+        private UnityEditor.Editor _editor;
 
         private SerializedProperty _scriptProp;
         private SerializedProperty _resolutionProp;
+        private SerializedProperty _hdrProp;
         private SerializedProperty _sRGBProp;
+        private SerializedProperty _generateMipmapsProp;
         private SerializedProperty _useTwoGradientsProp;
         private SerializedProperty _horizontalTopProp;
         private SerializedProperty _horizontalBottomProp;
         private SerializedProperty _verticalLerpProp;
         
-        private readonly static string[] propertiesToExclude =
+        private static readonly string[] propertiesToExclude =
         {
                 "m_Script",
                 "_resolution",
+                "_hdr",
                 "_sRGB",
+                "_generateMipmaps",
                 "_useTwoGradients",
                 "_horizontalTop",
                 "_horizontalBottom",
@@ -35,12 +39,14 @@ namespace Packages.GradientTextureGenerator.Editor
 
         public override bool HasPreviewGUI() => true;
 
-        void OnEnable()
+        private void OnEnable()
         {
             _gradientTexture = target as GradientTexture;
             _scriptProp = serializedObject.FindProperty("m_Script");
             _resolutionProp = serializedObject.FindProperty("_resolution");
+            _hdrProp = serializedObject.FindProperty("_HDR");
             _sRGBProp = serializedObject.FindProperty("_sRGB");
+            _generateMipmapsProp = serializedObject.FindProperty("_generateMipmaps");
             _useTwoGradientsProp = serializedObject.FindProperty("_useTwoGradients");
             _horizontalTopProp = serializedObject.FindProperty("_horizontalTop");
             _horizontalBottomProp = serializedObject.FindProperty("_horizontalBottom");
@@ -61,7 +67,10 @@ namespace Packages.GradientTextureGenerator.Editor
             EditorGUI.EndDisabledGroup();
             
             EditorGUILayout.PropertyField(_resolutionProp);
+            EditorGUILayout.PropertyField(_hdrProp);
             EditorGUILayout.PropertyField(_sRGBProp);
+            EditorGUILayout.PropertyField(_generateMipmapsProp);
+            
             EditorGUILayout.PropertyField(_useTwoGradientsProp);
             EditorGUILayout.PropertyField(_horizontalTopProp);
             
@@ -77,27 +86,39 @@ namespace Packages.GradientTextureGenerator.Editor
 
             if (GUILayout.Button(buttonText))
             {
-                foreach (Object target in targets)
+                foreach (Object targetObject in targets)
                 {
-                    GradientTexture targetTexture = target as GradientTexture;
+                    GradientTexture gradientTexture = (GradientTexture) targetObject;
 
                     string path = EditorUtility.SaveFilePanelInProject("Save file",
-                        $"{targetTexture.name}_baked",
+                        $"{gradientTexture.name}_baked",
                         "png",
                         "Choose path to save file");
 
                     if (string.IsNullOrEmpty(path))
                     {
-                        Debug.LogError("[ GradientTextureEditor ] EncodeToPNG() save path is empty! canceled",
-                            targetTexture);
-
                         return;
                     }
 
-                    bool wasSRGB = targetTexture.GetSRGB();
-                    if (wasSRGB) targetTexture.SetSRGB(false);
-                    byte[] bytes = ImageConversion.EncodeToPNG(targetTexture.GetTexture());
-                    targetTexture.SetSRGB(wasSRGB);
+                    Texture2D texture2D = gradientTexture.GetTexture();
+                    bool wasSRGB = gradientTexture.GetSRGB();
+                    
+                    // set linear or gamma for export
+                    if (_hdrProp.boolValue)
+                    {
+                        if (wasSRGB)
+                        {
+                            gradientTexture.SetSRGB(false);
+                        }
+                    }
+                    else
+                    {
+                        // non hdr has to be always srgb during encode
+                        gradientTexture.SetSRGB(true);
+                    }
+                    
+                    byte[] bytes = gradientTexture.GetTexture().EncodeToPNG();
+                    gradientTexture.SetSRGB(wasSRGB);
 
                     int length = "Assets".Length;
                     string dataPath = Application.dataPath;
@@ -111,13 +132,19 @@ namespace Packages.GradientTextureGenerator.Editor
                     Texture2D image = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
 
                     TextureImporter importer = (TextureImporter) AssetImporter.GetAtPath(path);
-                    importer.sRGBTexture = targetTexture.GetSRGB();
+                    importer.sRGBTexture = wasSRGB;
+                    importer.wrapMode = texture2D.wrapMode;
+                    importer.mipmapEnabled = texture2D.mipmapCount > 1;
                     importer.SaveAndReimport();
+
+                    if (importer.importSettingsMissing)
+                    {
+                        importer.textureCompression = TextureImporterCompression.CompressedHQ;
+                    }
                     AssetDatabase.SaveAssets();
                     AssetDatabase.Refresh();
 
-                    Debug.Log($"[ GradientTextureEditor ] EncodeToPNG() Success! png-gradient saved at '{path}'",
-                        image);
+                    Debug.Log($"[ GradientTextureEditor ] EncodeToPNG() Success! png-gradient saved at '{path}'", image);
 
                     EditorGUIUtility.PingObject(image);
                     Selection.activeObject = image;

@@ -14,26 +14,29 @@ namespace Packages.GradientTextureGenerator.Runtime
 
         Texture2D GetTexture();
 
-        void LoadExisitingTexture();
+        void LoadExistingTexture();
     }
 
     /// <summary>
     /// Main Asset, holds settings, create, hold and change Texture2D's pixels, name
     /// </summary>
-    [CreateAssetMenu(fileName = "NewGradientName", menuName = "Texture/Gradient")]
+    [CreateAssetMenu(fileName = "NewGradientTexture", menuName = "Texture/Gradient")]
     public class GradientTexture : ScriptableObject, IEquatable<Texture2D>, ISerializationCallbackReceiver,
         IGradientTextureForEditor
     {
-        [SerializeField] Vector2Int _resolution = new Vector2Int(256, 256);
+        [SerializeField] Vector2Int _resolution = new(256, 256);
+        [SerializeField] bool _HDR = true;
         [SerializeField] bool _sRGB = true;
+        [SerializeField] bool _generateMipmaps;
+        
         [SerializeField] bool _useTwoGradients = true;
         [SerializeField, GradientUsage(true)] Gradient _horizontalTop = GetDefaultGradient();
         [SerializeField, GradientUsage(true)] Gradient _horizontalBottom = GetDefaultGradient();
         [SerializeField] AnimationCurve _verticalLerp = AnimationCurve.Linear(0, 0, 1, 1);
-        [SerializeField, HideInInspector] Texture2D _texture = default;
+        [SerializeField, HideInInspector] Texture2D _texture;
 
         public Texture2D GetTexture() => _texture;
-
+        
         public bool GetSRGB() => _sRGB;
 
         public void SetSRGB(bool value)
@@ -42,11 +45,10 @@ namespace Packages.GradientTextureGenerator.Runtime
             OnValidate();
         }
 
-        int _width => _resolution.x;
-        int _height => _resolution.y;
-
         public static implicit operator Texture2D(GradientTexture asset) => asset.GetTexture();
 
+        private bool IsHDRFormat => GraphicsFormatUtility.IsHDRFormat(_texture.format);
+        
         static Gradient GetDefaultGradient() => new Gradient
         {
             alphaKeys = new[] { new GradientAlphaKey(1, 1) },
@@ -57,19 +59,17 @@ namespace Packages.GradientTextureGenerator.Runtime
             }
         };
 
-        public void FillColors(bool useRGB)
+        public void FillColors()
         {
             bool isLinear = QualitySettings.activeColorSpace == ColorSpace.Linear;
-
-            float tVertical = 0;
-
-            for (int y = 0; y < _height; y++)
+            
+            for (int y = 0; y < _resolution.y; y++)
             {
-                tVertical = _verticalLerp.Evaluate((float) y / _height);
+                float tVertical = _verticalLerp.Evaluate((float) y / _resolution.y);
 
-                for (int x = 0; x < _width; x++)
+                for (int x = 0; x < _resolution.x; x++)
                 {
-                    float tHorizontal = (float) x / _width;
+                    float tHorizontal = (float) x / _resolution.x;
 
                     Color color = _useTwoGradients
                             ? Color.Lerp(_horizontalBottom.Evaluate(tHorizontal),
@@ -77,7 +77,16 @@ namespace Packages.GradientTextureGenerator.Runtime
                                     tVertical)
                             : _horizontalTop.Evaluate(tHorizontal);
 
-                    color = useRGB && isLinear ? color.linear : color;
+                    
+                    if (GraphicsFormatUtility.IsHDRFormat(_texture.format))
+                    {
+                        color = _sRGB && isLinear ? color.linear : color;
+                    }
+                    else
+                    {
+                        color = _sRGB && isLinear ? color : color.gamma;
+                    }
+
                     _texture.SetPixel(x, y, color);
                 }
             }
@@ -92,7 +101,7 @@ namespace Packages.GradientTextureGenerator.Runtime
 
         void OnValidate() => ValidateTextureValues();
 
-        void IGradientTextureForEditor.LoadExisitingTexture()
+        void IGradientTextureForEditor.LoadExistingTexture()
         {
             #if UNITY_EDITOR
             if (!_texture)
@@ -106,7 +115,6 @@ namespace Packages.GradientTextureGenerator.Runtime
         void IGradientTextureForEditor.CreateTexture()
         {
             #if UNITY_EDITOR
-            //if (EditorApplication.isUpdating) return;
 
             string assetPath = AssetDatabase.GetAssetPath(this);
             if (string.IsNullOrEmpty(assetPath)) return;
@@ -122,7 +130,15 @@ namespace Packages.GradientTextureGenerator.Runtime
 #if UNITY_2018
                 _texture = new Texture2D(_resolution.x, _resolution.y);
 #else
-                _texture = new Texture2D(_resolution.x, _resolution.y, DefaultFormat.LDR, TextureCreationFlags.None);
+
+                _texture = new Texture2D(
+                    _resolution.x, 
+                    _resolution.y, 
+                    _HDR ? DefaultFormat.HDR : DefaultFormat.LDR, 
+                    _generateMipmaps ? TextureCreationFlags.MipChain : TextureCreationFlags.None)
+                {
+                    wrapMode = TextureWrapMode.Clamp
+                };
 #endif
                 if (_texture.name != name) _texture.name = name;
             }
@@ -145,7 +161,7 @@ namespace Packages.GradientTextureGenerator.Runtime
 #endif
         }
 
-        void ValidateTextureValues()
+        private void ValidateTextureValues()
         {
             if (!_texture) return;
             if (_texture.name != name)
@@ -154,11 +170,18 @@ namespace Packages.GradientTextureGenerator.Runtime
             }
             else
             {
-                if (_texture.width != _resolution.x ||
-                    _texture.height != _resolution.y)
+                if (_texture.width != _resolution.x
+                    || _texture.height != _resolution.y 
+                    || IsHDRFormat != _HDR
+                    || _texture.mipmapCount == 1 == _generateMipmaps // mip map minimum is 1
+                   )
                 {
 #if UNITY_2022_1_OR_NEWER
-                    _texture.Reinitialize(_resolution.x, _resolution.y);
+                    _texture.Reinitialize(
+                        _resolution.x,
+                        _resolution.y,
+                        SystemInfo.GetGraphicsFormat(_HDR ? DefaultFormat.HDR : DefaultFormat.LDR),
+                        _generateMipmaps);
 #else
                     _texture.Resize(_resolution.x, _resolution.y);
 #endif
@@ -167,7 +190,7 @@ namespace Packages.GradientTextureGenerator.Runtime
 #if UNITY_EDITOR
                 _texture.alphaIsTransparency = true;
 #endif
-                FillColors(_sRGB);
+                FillColors();
 
                 SetDirtyTexture();
             }
@@ -184,7 +207,7 @@ namespace Packages.GradientTextureGenerator.Runtime
             EditorUtility.SetDirty(_texture);
 #endif
         }
-
+        
         #endregion
 
         public void OnAfterDeserialize()
