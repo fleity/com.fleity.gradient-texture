@@ -1,42 +1,47 @@
-﻿using Packages.GradientTextureGenerator.Runtime;
+﻿using System;
+using Packages.GradientTextureGenerator.Runtime;
 using UnityEditor;
-using UnityEditor.Callbacks;
 using UnityEngine;
 
 namespace Packages.GradientTextureGenerator.Editor
 {
-    public class ProjectIconsUtility : MonoBehaviour
+    [InitializeOnLoad]
+    public static class ProjectIconsUtility
     {
-        [DidReloadScripts]
+        private static readonly Type GradientTextureType = typeof(GradientTexture);
+
         static ProjectIconsUtility()
         {
             EditorApplication.projectWindowItemOnGUI -= ItemOnGUI;
             EditorApplication.projectWindowItemOnGUI += ItemOnGUI;
         }
 
-        static void ItemOnGUI(string guid, Rect rect)
+        private static void ItemOnGUI(string guid, Rect rect)
         {
             string assetPath = AssetDatabase.GUIDToAssetPath(guid);
+
+            // Check if asset is a scriptable object and if type of asset at path is Gradient Texture without loading the asset
+            if (!assetPath.EndsWith(".asset") ||
+                AssetDatabase.GetMainAssetTypeAtPath(assetPath) != GradientTextureType)
+            {
+                return;
+            }
+
             var asset = AssetDatabase.LoadAssetAtPath<GradientTexture>(assetPath);
 
-            if (asset == null) return;
-            if (!asset.GetTexture()) return;
-
-
-            if (rect.height > 30)
+            // if the rect size is less than 30 the icon is shown, if larger the project view uses the texture from RenderStaticPreview
+            if (rect.height < 30)
             {
-                // rect.position = new Vector2(rect.position.x + rect.height * .1f + rect.width - rect.height, rect.position.y);
-                // rect.height *= .87f;
-                // rect.width = rect.height - 5;
-                // rect.height *= .95f;
-            }
-            else
-            {
-                //rect.position = new Vector2(rect.position.x-2 + rect.width - rect.height, rect.position.y);
-                rect.width = rect.height *= .9f;
-                GUI.DrawTexture(rect, asset.GetTexture());
-            }
+                Texture2D texture = asset.GetTexture();
 
+                if (texture == null)
+                {
+                    return;
+                }
+                
+                Rect iconRect = new Rect { x = rect.x + 3, y = rect.y, height = rect.height - 1, width = rect.height };
+                GUI.DrawTexture(iconRect, AssetPreview.GetMiniThumbnail(texture));
+            }
         }
     }
 }

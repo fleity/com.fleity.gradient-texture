@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -14,6 +15,15 @@ namespace Packages.GradientTextureGenerator.Editor
         private GradientTexture _gradientTexture;
         private UnityEditor.Editor _editor;
 
+        private const string EncodeToFileText = "Encode to";
+
+        private enum EncodeFileType
+        {
+            Png = 0,
+            Tga = 1,
+            Exr = 2,
+        }
+
         private SerializedProperty _scriptProp;
         private SerializedProperty _resolutionProp;
         private SerializedProperty _hdrProp;
@@ -23,21 +33,21 @@ namespace Packages.GradientTextureGenerator.Editor
         private SerializedProperty _horizontalTopProp;
         private SerializedProperty _horizontalBottomProp;
         private SerializedProperty _verticalLerpProp;
-        
+
         private static readonly string[] propertiesToExclude =
         {
-                "m_Script",
-                "_resolution",
-                "_HDR",
-                "_sRGB",
-                "_generateMipmaps",
-                "_useTwoGradients",
-                "_horizontalTop",
-                "_horizontalBottom",
-                "_verticalLerp",
+            "m_Script",
+            "_resolution",
+            "_HDR",
+            "_sRGB",
+            "_generateMipmaps",
+            "_useTwoGradients",
+            "_horizontalTop",
+            "_horizontalBottom",
+            "_verticalLerp",
         };
 
-        public override bool HasPreviewGUI() => true;
+        public override bool HasPreviewGUI() => false;
 
         private void OnEnable()
         {
@@ -52,12 +62,20 @@ namespace Packages.GradientTextureGenerator.Editor
             _horizontalBottomProp = serializedObject.FindProperty("_horizontalBottom");
             _verticalLerpProp = serializedObject.FindProperty("_verticalLerp");
         }
-
+        
         public override void OnInspectorGUI()
         {
             if (_gradientTexture.GetTexture() == null)
             {
-                (_gradientTexture as IGradientTextureForEditor).CreateTexture();
+                Texture2D newTex = (_gradientTexture as IGradientTextureForEditor).CreateTexture();
+
+                if (newTex != null)
+                {
+                    // AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(newTex), ImportAssetOptions.ForceUpdate);
+                    OnEnable();
+
+                    return;
+                }
             }
             
             serializedObject.Update();
@@ -65,15 +83,15 @@ namespace Packages.GradientTextureGenerator.Editor
             EditorGUI.BeginDisabledGroup(true);
             EditorGUILayout.PropertyField(_scriptProp);
             EditorGUI.EndDisabledGroup();
-            
+
             EditorGUILayout.PropertyField(_resolutionProp);
             EditorGUILayout.PropertyField(_hdrProp);
             EditorGUILayout.PropertyField(_sRGBProp);
             EditorGUILayout.PropertyField(_generateMipmapsProp);
-            
+
             EditorGUILayout.PropertyField(_useTwoGradientsProp);
             EditorGUILayout.PropertyField(_horizontalTopProp);
-            
+
             EditorGUI.BeginDisabledGroup(!_useTwoGradientsProp.boolValue);
             EditorGUILayout.PropertyField(_horizontalBottomProp);
             EditorGUILayout.PropertyField(_verticalLerpProp);
@@ -82,73 +100,112 @@ namespace Packages.GradientTextureGenerator.Editor
             DrawPropertiesExcluding(serializedObject, propertiesToExclude);
             serializedObject.ApplyModifiedProperties();
 
-            string buttonText = "Encode to PNG" + (targets.Length > 1 ? $" ({targets.Length})" : "");
+            EditorGUILayout.Space();
 
-            if (GUILayout.Button(buttonText))
+            // Draw export buttons
+            foreach (EncodeFileType fileType in Enum.GetValues(typeof(EncodeFileType)))
             {
-                foreach (Object targetObject in targets)
+                if (GUILayout.Button(GetEncodeButtonText(fileType)))
                 {
-                    GradientTexture gradientTexture = (GradientTexture) targetObject;
-
-                    string path = EditorUtility.SaveFilePanelInProject("Save file",
-                        $"{gradientTexture.name}_baked",
-                        "png",
-                        "Choose path to save file");
-
-                    if (string.IsNullOrEmpty(path))
-                    {
-                        return;
-                    }
-
-                    Texture2D texture2D = gradientTexture.GetTexture();
-                    bool wasSRGB = gradientTexture.GetSRGB();
-                    
-                    // set linear or gamma for export
-                    if (_hdrProp.boolValue)
-                    {
-                        if (wasSRGB)
-                        {
-                            gradientTexture.SetSRGB(false);
-                        }
-                    }
-                    else
-                    {
-                        // non hdr has to be always srgb during encode
-                        gradientTexture.SetSRGB(true);
-                    }
-                    
-                    byte[] bytes = gradientTexture.GetTexture().EncodeToPNG();
-                    gradientTexture.SetSRGB(wasSRGB);
-
-                    int length = "Assets".Length;
-                    string dataPath = Application.dataPath;
-                    dataPath = dataPath.Remove(dataPath.Length - length, length);
-                    dataPath += path;
-                    File.WriteAllBytes(dataPath, bytes);
-
-                    AssetDatabase.SaveAssets();
-                    AssetDatabase.Refresh();
-                    AssetDatabase.ImportAsset(path);
-                    Texture2D image = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-
-                    TextureImporter importer = (TextureImporter) AssetImporter.GetAtPath(path);
-                    importer.sRGBTexture = wasSRGB;
-                    importer.wrapMode = texture2D.wrapMode;
-                    importer.mipmapEnabled = texture2D.mipmapCount > 1;
-                    importer.SaveAndReimport();
-
-                    if (importer.importSettingsMissing)
-                    {
-                        importer.textureCompression = TextureImporterCompression.CompressedHQ;
-                    }
-                    AssetDatabase.SaveAssets();
-                    AssetDatabase.Refresh();
-
-                    Debug.Log($"[ GradientTextureEditor ] EncodeToPNG() Success! png-gradient saved at '{path}'", image);
-
-                    EditorGUIUtility.PingObject(image);
-                    Selection.activeObject = image;
+                    EncodeToFiles(fileType);
                 }
+            }
+        }
+
+        private string GetEncodeButtonText(EncodeFileType fileType)
+        {
+            string ft = fileType.ToString().ToUpper();
+            return targets.Length > 1 ? $"{EncodeToFileText} {ft} ({targets.Length})" : $"{EncodeToFileText} {ft}";
+        }
+
+        private void EncodeToFiles(EncodeFileType fileType)
+        {
+            foreach (Object targetObject in targets)
+            {
+                GradientTexture gradientTexture = (GradientTexture)targetObject;
+
+                string extension = fileType.ToString().ToLower();
+                string path = EditorUtility.SaveFilePanelInProject(
+                    "Save file",
+                    $"{gradientTexture.name}_baked",
+                    extension,
+                    "Choose path to save file", 
+                    AssetDatabase.GetAssetPath(gradientTexture));
+
+                if (string.IsNullOrEmpty(path))
+                {
+                    return;
+                }
+
+                Texture2D texture2D = gradientTexture.GetTexture();
+                bool wasSRGB = gradientTexture.GetSRGB();
+
+                // set linear or gamma for export
+                if (_hdrProp.boolValue)
+                {
+                    if (wasSRGB)
+                    {
+                        gradientTexture.SetSRGB(false);
+                    }
+                }
+                else
+                {
+                    // non hdr has to be always srgb during encode
+                    gradientTexture.SetSRGB(true);
+                }
+
+                // Get byte array for file type
+                byte[] bytes;
+
+                switch (fileType)
+                {
+                    case EncodeFileType.Png:
+                        // The encoded PNG data will be either 8bit grayscale, RGB or RGBA (depending on the passed in format)
+                        bytes = texture2D.EncodeToPNG();
+
+                        break;
+                    case EncodeFileType.Tga:
+                        bytes = texture2D.EncodeToTGA();
+
+                        break;
+                    case EncodeFileType.Exr:
+                        bytes = texture2D.EncodeToEXR();
+
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(fileType), fileType, null);
+                }
+
+                gradientTexture.SetSRGB(wasSRGB);
+
+                // Get output path
+                int length = "Assets".Length;
+                string dataPath = $"{Application.dataPath[..^length]}{path}";
+                bool fileExistedBefore = File.Exists(dataPath);
+                File.WriteAllBytes(dataPath, bytes);
+
+                if (!fileExistedBefore)
+                {
+                    AssetDatabase.ImportAsset(path); // Import asset to create importer
+                }
+                
+                // Set importer settings of exported file
+                TextureImporter importer = (TextureImporter)AssetImporter.GetAtPath(path);
+                importer.sRGBTexture = wasSRGB;
+                importer.wrapMode = texture2D.wrapMode;
+                importer.mipmapEnabled = texture2D.mipmapCount > 1;
+
+                if (importer.importSettingsMissing)
+                {
+                    importer.textureCompression = TextureImporterCompression.CompressedHQ;
+                }
+
+                // Import asset to update importer
+                AssetDatabase.ImportAsset(path);
+
+                Debug.Log($"[GradientTextureEditor] Saved gradient image at '{path}'", importer);
+                EditorGUIUtility.PingObject(importer);
+                Selection.activeObject = importer;
             }
         }
 
@@ -161,7 +218,7 @@ namespace Packages.GradientTextureGenerator.Editor
             {
                 try
                 {
-                    _editor = CreateEditor(targets.Select(t => (t as GradientTexture)?.GetTexture()).ToArray());
+                    // _editor = CreateEditor(targets.Select(t => (t as GradientTexture)?.GetTexture()).ToArray());
                 }
                 catch
                 {
@@ -255,6 +312,7 @@ namespace Packages.GradientTextureGenerator.Editor
             if (_gradientTexture.GetTexture() == null) return null;
             Texture2D tex = new Texture2D(width, height);
             EditorUtility.CopySerialized(_gradientTexture.GetTexture(), tex);
+
             return tex;
         }
 

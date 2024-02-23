@@ -10,7 +10,7 @@ namespace Packages.GradientTextureGenerator.Runtime
 {
     public interface IGradientTextureForEditor
     {
-        void CreateTexture();
+        Texture2D CreateTexture();
 
         Texture2D GetTexture();
 
@@ -112,16 +112,16 @@ namespace Packages.GradientTextureGenerator.Runtime
             #endif
         }
 
-        void IGradientTextureForEditor.CreateTexture()
+        Texture2D IGradientTextureForEditor.CreateTexture()
         {
             #if UNITY_EDITOR
 
             string assetPath = AssetDatabase.GetAssetPath(this);
-            if (string.IsNullOrEmpty(assetPath)) return;
+            if (string.IsNullOrEmpty(assetPath)) return null;
 
-            if (!_texture && this != null && !EditorApplication.isUpdating)
+            if (_texture == null && this != null && !EditorApplication.isUpdating)
             {
-                AssetDatabase.ImportAsset(assetPath);
+                // AssetDatabase.ImportAsset(assetPath);
                 _texture = AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
             }
 
@@ -143,21 +143,21 @@ namespace Packages.GradientTextureGenerator.Runtime
                 if (_texture.name != name) _texture.name = name;
             }
 
-            if (!_texture) return;
+            if (!_texture) return null;
 
             ValidateTextureValues();
 
-            if (!EditorUtility.IsPersistent(this)) return;
-            if (AssetDatabase.IsSubAsset(_texture)) return;
-            if (AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath)) return;
+            if (!EditorUtility.IsPersistent(this)) return null;
+            if (AssetDatabase.IsSubAsset(_texture)) return null;
+            if (AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath)) return null;
 
             #if UNITY_2020_1_OR_NEWER
-            if (AssetDatabase.IsAssetImportWorkerProcess()) return;
+            if (AssetDatabase.IsAssetImportWorkerProcess()) return null;
             #endif
             AssetDatabase.AddObjectToAsset(_texture, this);
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-            AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);
+
+            return _texture;
+            //  AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);
 #endif
         }
 
