@@ -1,46 +1,44 @@
-﻿using System;
-using Packages.GradientTextureGenerator.Runtime;
+﻿using Packages.GradientTextureGenerator.Runtime;
 using UnityEditor;
+using UnityEditor.Callbacks;
 using UnityEngine;
 
 namespace Packages.GradientTextureGenerator.Editor
 {
-    [InitializeOnLoad]
-    public static class ProjectIconsUtility
+    public class ProjectIconsUtility : MonoBehaviour
     {
-        private static readonly Type GradientTextureType = typeof(GradientTexture);
-
+        [DidReloadScripts]
         static ProjectIconsUtility()
         {
             EditorApplication.projectWindowItemOnGUI -= ItemOnGUI;
             EditorApplication.projectWindowItemOnGUI += ItemOnGUI;
         }
 
-        private static void ItemOnGUI(string guid, Rect rect)
+        static void ItemOnGUI(string guid, Rect rect)
         {
             string assetPath = AssetDatabase.GUIDToAssetPath(guid);
-
-            // Check if asset is a scriptable object and if type of asset at path is Gradient Texture without loading the asset
-            if (!assetPath.EndsWith(".asset") ||
-                AssetDatabase.GetMainAssetTypeAtPath(assetPath) != GradientTextureType)
+            
+            // Return if not correct asset type
+            if (!assetPath.EndsWith(".asset") || 
+                AssetDatabase.GetMainAssetTypeAtPath(assetPath) != typeof(GradientTexture))
             {
                 return;
             }
+            
+            // Get gradient asset
+            GradientTexture asset = AssetDatabase.LoadAssetAtPath<GradientTexture>(assetPath);
 
-            var asset = AssetDatabase.LoadAssetAtPath<GradientTexture>(assetPath);
-
-            // if the rect size is less than 30 the icon is shown, if larger the project view uses the texture from RenderStaticPreview
-            if (rect.height < 30)
+            // Return if gradient or texture not valid
+            if (asset == null || !asset.GetTexture())
             {
-                Texture2D texture = asset.GetTexture();
-
-                if (texture == null)
-                {
-                    return;
-                }
-                
-                Rect iconRect = new Rect { x = rect.x + 3, y = rect.y, height = rect.height - 1, width = rect.height };
-                GUI.DrawTexture(iconRect, AssetPreview.GetMiniThumbnail(texture));
+                return;
+            }
+            
+            // Draw small icon preview
+            if (rect.height <= 30)
+            {
+                rect.width = rect.height *= .9f;
+                GUI.DrawTexture(rect, asset.GetTexture());
             }
         }
     }
