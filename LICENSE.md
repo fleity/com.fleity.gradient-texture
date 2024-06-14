@@ -1,5 +1,6 @@
 MIT License
 
+Copyright (c) 2024 fleity <br>
 Copyright (c) 2022 mitay-walle Dmitry Lazarev-Lobachev
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

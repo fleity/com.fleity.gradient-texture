@@ -1,13 +1,15 @@
 ﻿using Packages.GradientTextureGenerator.Runtime;
 using UnityEditor;
-using UnityEditor.Callbacks;
 using UnityEngine;
 
 namespace Packages.GradientTextureGenerator.Editor
 {
+    /// <summary>
+    /// Handles drawing the gradient preview in the project tab. Only updates when the project tab updates too (i.e. on mouse over).
+    /// </summary>
+    [InitializeOnLoad]
     public class ProjectIconsUtility : MonoBehaviour
     {
-        [DidReloadScripts]
         static ProjectIconsUtility()
         {
             EditorApplication.projectWindowItemOnGUI -= ItemOnGUI;
@@ -37,7 +39,7 @@ namespace Packages.GradientTextureGenerator.Editor
             // Draw small icon preview
             if (rect.height <= 30)
             {
-                rect.width = rect.height *= .9f;
+                rect.width = rect.height; // draw the preview in square aspect
                 GUI.DrawTexture(rect, asset.Texture);
             }
         }

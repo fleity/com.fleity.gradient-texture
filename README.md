@@ -1,14 +1,15 @@
 # GradientTexture
-Unity Gradient Texture generator. Texture2D-Gradient generated dynamicly Editor-time, by ScriptableObject with Gradient-properties
 
-[usage example video ( Youtube )](https://youtu.be/LmBBTqhpsbw)
-<br>shader in example based on [this](https://simonschreibt.de/gat/fallout-4-the-mushroom-case/), can be downloaded [here](https://github.com/mitay-walle/GradientTexture/issues/6)
+This is based largely on https://github.com/mitay-walle/com.mitay-walle.gradient-texture/tree/main,
+but with both runtime and editor code mostly rewritten to add new features, fix warnings and build errors and cleaner separate the code
+(fleity).
 
-What's new:
-- srgb / linear flag
-- drag and drop as simple texture (Unity 2021.2 minimum)
-- Encode to PNG
-- stackable preview
+
+Unity gradient texture generator,
+Texture2D-Gradient generated in Editor by ScriptableObject with Gradient-properties.
+
+[Usage example video ( Youtube )](https://youtu.be/LmBBTqhpsbw)
+<br>Shader in example based on [this](https://simonschreibt.de/gat/fallout-4-the-mushroom-case/), can be downloaded [here](https://github.com/mitay-walle/GradientTexture/issues/6)
 
 ![](https://github.com/mitay-walle/com.mitay-walle.gradient-texture/blob/main/Documentation/gradientTexture_srgb_inspector_preview.png)
 ![alt text](https://github.com/mitay-walle/GradientTexture/blob/main/Documentation/Inspector_preview.png?raw=true)
@@ -20,7 +21,7 @@ What's new:
 ## I. Shader Graph no Exposed Gradient
 [You can't expose gradient to material inspector](https://issuetracker.unity3d.com/issues/gradient-property-cant-be-exposed-from-the-shadergraph)
 
-You forced to use Texture2D-based gradients
+You are forced to use Texture2D-based gradients
 
 [Forum last active thread](https://forum.unity.com/threads/gradients-exposed-property-is-ignored.837970/)
 
@@ -36,9 +37,9 @@ While designing VFX using gradients you need to tweak colors and positions, acco
 8. repeat all
 
 # Solution
-Texture2D-Gradient generated dynamicly Editor-time, by ScriptableObject with Gradient-properties
+Texture2D-Gradient generated dynamically during Editor-time by a ScriptableObject with Gradient-properties
 <br>I. Exposed in shader graph as Texture2D
-<br>II. faster iteration with no need to switch to Photoshop, rearrange windows, save file, reimport
+<br>II. faster iteration with no need to switch to Photoshop, rearrange windows, save file, reimport etc.
 
 # Summary
 - [release 1.0.6](https://github.com/mitay-walle/GradientTexture/releases/tag/1.0.6) is tested with Unity3d 2018-2022
@@ -55,3 +56,6 @@ Texture2D-Gradient generated dynamicly Editor-time, by ScriptableObject with Gra
 - Encode to PNG for better compression and full control at import settings
 - stackable preview
 - sRGB / Linear flag
+
+
+- [release 1.1.0](https://github.com/mitay-walle/GradientTexture/releases/tag/1.0.6) Added encode to Exr / Tga, inspector uses UITK, refactor, fixed warnings and build errors

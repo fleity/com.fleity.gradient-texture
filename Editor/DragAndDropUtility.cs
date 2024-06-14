@@ -6,6 +6,9 @@ using UnityEngine;
 
 namespace Packages.GradientTextureGenerator.Editor
 {
+    /// <summary>
+    /// Drag and drop implementation for <see cref="GradientTexture"/> to move it directly onto Texture2D slots.
+    /// </summary>
     public static class DragAndDropUtility
     {
         private static DragAndDrop.ProjectBrowserDropHandler projectHandler;
