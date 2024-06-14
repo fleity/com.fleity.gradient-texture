@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
+using UnityEngine.Serialization;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -11,218 +12,241 @@ namespace Packages.GradientTextureGenerator.Runtime
     public interface IGradientTextureForEditor
     {
         Texture2D CreateTexture();
-
-        Texture2D GetTexture();
-
+        
+        Texture2D Texture { get; }
+        
         void LoadExistingTexture();
     }
-
+    
     /// <summary>
     /// Main Asset, holds settings, create, hold and change Texture2D's pixels, name
     /// </summary>
     [CreateAssetMenu(fileName = "NewGradientTexture", menuName = "Texture/Gradient")]
-    public class GradientTexture : ScriptableObject, IEquatable<Texture2D>, ISerializationCallbackReceiver,
-        IGradientTextureForEditor
+    public class GradientTexture : ScriptableObject, IEquatable<Texture2D>, ISerializationCallbackReceiver, IGradientTextureForEditor
     {
-        [SerializeField] Vector2Int _resolution = new(256, 256);
-        [SerializeField] bool _HDR = true;
-        [SerializeField] bool _sRGB = true;
-        [SerializeField] bool _generateMipmaps;
+        [FormerlySerializedAs("_resolution")][SerializeField] private Vector2Int resolution = new Vector2Int(256, 256);
+        [FormerlySerializedAs("_HDR")][SerializeField] private bool hdr = true;
+        [FormerlySerializedAs("_sRGB")][SerializeField] private bool sRGB = true;
+        [FormerlySerializedAs("_generateMipmaps")][SerializeField] private bool generateMipmaps;
+        [FormerlySerializedAs("_useTwoGradients")][SerializeField] private bool useTwoGradients = true;
+        [FormerlySerializedAs("_horizontalTop")][SerializeField, GradientUsage(true)] private Gradient horizontalTop = GetDefaultGradient();
+        [FormerlySerializedAs("_horizontalBottom")][SerializeField, GradientUsage(true)] private Gradient horizontalBottom = GetDefaultGradient();
+        [FormerlySerializedAs("_verticalLerp")][SerializeField] private AnimationCurve verticalLerp = AnimationCurve.Linear(0, 0, 1, 1);
+        [FormerlySerializedAs("_texture")][SerializeField, HideInInspector] private Texture2D texture;
         
-        [SerializeField] bool _useTwoGradients = true;
-        [SerializeField, GradientUsage(true)] Gradient _horizontalTop = GetDefaultGradient();
-        [SerializeField, GradientUsage(true)] Gradient _horizontalBottom = GetDefaultGradient();
-        [SerializeField] AnimationCurve _verticalLerp = AnimationCurve.Linear(0, 0, 1, 1);
-        [SerializeField, HideInInspector] Texture2D _texture;
-
-        public Texture2D GetTexture() => _texture;
+#if UNITY_EDITOR
+        public const string RESOLUTION_PROP_NAME = nameof(resolution);
+        public const string HDR_PROP_NAME = nameof(hdr);
+        public const string S_RGB_PROP_NAME = nameof(sRGB);
+        public const string GENERATE_MIPMAPS_PROP_NAME = nameof(generateMipmaps);
+        public const string USE_TWO_GRADIENTS_PROP_NAME = nameof(useTwoGradients);
+        public const string HORIZONTAL_TOP_PROP_NAME = nameof(horizontalTop);
+        public const string HORIZONTAL_BOTTOM_PROP_NAME = nameof(horizontalBottom);
+        public const string VERTICAL_LERP_PROP_NAME = nameof(verticalLerp);
+#endif
         
-        public bool GetSRGB() => _sRGB;
-
+        public Texture2D Texture => texture;
+        public bool SRGB => sRGB;
+        
         public void SetSRGB(bool value)
         {
-            _sRGB = value;
+            sRGB = value;
             OnValidate();
         }
-
-        public static implicit operator Texture2D(GradientTexture asset) => asset.GetTexture();
-
-        private bool IsHDRFormat => GraphicsFormatUtility.IsHDRFormat(_texture.format);
         
-        static Gradient GetDefaultGradient() => new Gradient
+        public static implicit operator Texture2D(GradientTexture asset)
         {
-            alphaKeys = new[] { new GradientAlphaKey(1, 1) },
-            colorKeys = new[]
+            return asset.Texture;
+        }
+        
+        private bool IsHDRFormat => GraphicsFormatUtility.IsHDRFormat(texture.format);
+        
+        private static Gradient GetDefaultGradient()
+        {
+            return new Gradient
             {
-                new GradientColorKey(Color.black, 0),
-                new GradientColorKey(Color.white, 1)
-            }
-        };
-
+                    alphaKeys = new[] { new GradientAlphaKey(1, 1) },
+                    colorKeys = new[] { new GradientColorKey(Color.black, 0), new GradientColorKey(Color.white, 1) }
+            };
+        }
+        
+        /// <summary>
+        /// Fill pixels of texture with colors from the gradient definition. 
+        /// </summary>
         public void FillColors()
         {
             bool isLinear = QualitySettings.activeColorSpace == ColorSpace.Linear;
             
-            for (int y = 0; y < _resolution.y; y++)
+            for (int y = 0; y < resolution.y; y++)
             {
-                float tVertical = _verticalLerp.Evaluate((float) y / _resolution.y);
-
-                for (int x = 0; x < _resolution.x; x++)
+                float tVertical = verticalLerp.Evaluate((float) y / resolution.y);
+                
+                for (int x = 0; x < resolution.x; x++)
                 {
-                    float tHorizontal = (float) x / _resolution.x;
-
-                    Color color = _useTwoGradients
-                            ? Color.Lerp(_horizontalBottom.Evaluate(tHorizontal),
-                                    _horizontalTop.Evaluate(tHorizontal),
-                                    tVertical)
-                            : _horizontalTop.Evaluate(tHorizontal);
-
+                    float tHorizontal = (float) x / resolution.x;
                     
-                    if (GraphicsFormatUtility.IsHDRFormat(_texture.format))
+                    Color color = useTwoGradients
+                            ? Color.Lerp(horizontalBottom.Evaluate(tHorizontal), horizontalTop.Evaluate(tHorizontal), tVertical)
+                            : horizontalTop.Evaluate(tHorizontal);
+                    
+                    if (GraphicsFormatUtility.IsHDRFormat(texture.format))
                     {
-                        color = _sRGB && isLinear ? color.linear : color;
+                        color = sRGB && isLinear ? color.linear : color;
                     }
                     else
                     {
-                        color = _sRGB && isLinear ? color : color.gamma;
+                        color = sRGB && isLinear ? color : color.gamma;
                     }
-
-                    _texture.SetPixel(x, y, color);
+                    
+                    texture.SetPixel(x, y, color);
                 }
             }
-
-            _texture.Apply();
+            
+            texture.Apply();
         }
-
+        
         public bool Equals(Texture2D other)
         {
-            return _texture.Equals(other);
+            return texture.Equals(other);
         }
-
-        void OnValidate() => ValidateTextureValues();
-
+        
+        private void OnValidate()
+        {
+            ValidateTextureValues();
+        }
+        
         void IGradientTextureForEditor.LoadExistingTexture()
         {
-            #if UNITY_EDITOR
-            if (!_texture)
+#if UNITY_EDITOR
+            if (texture)
             {
-                string assetPath = AssetDatabase.GetAssetPath(this);
-                _texture = AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
+                return;
             }
-            #endif
-        }
-
-        Texture2D IGradientTextureForEditor.CreateTexture()
-        {
-            #if UNITY_EDITOR
-
+            
             string assetPath = AssetDatabase.GetAssetPath(this);
-            if (string.IsNullOrEmpty(assetPath)) return null;
-
-            if (_texture == null && this != null && !EditorApplication.isUpdating)
-            {
-                // AssetDatabase.ImportAsset(assetPath);
-                _texture = AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
-            }
-
-            if (!_texture)
-            {
-#if UNITY_2018
-                _texture = new Texture2D(_resolution.x, _resolution.y);
-#else
-
-                _texture = new Texture2D(
-                    _resolution.x, 
-                    _resolution.y, 
-                    _HDR ? DefaultFormat.HDR : DefaultFormat.LDR, 
-                    _generateMipmaps ? TextureCreationFlags.MipChain : TextureCreationFlags.None)
-                {
-                    wrapMode = TextureWrapMode.Clamp
-                };
-#endif
-                if (_texture.name != name) _texture.name = name;
-            }
-
-            if (!_texture) return null;
-
-            ValidateTextureValues();
-
-            if (!EditorUtility.IsPersistent(this)) return null;
-            if (AssetDatabase.IsSubAsset(_texture)) return null;
-            if (AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath)) return null;
-
-            #if UNITY_2020_1_OR_NEWER
-            if (AssetDatabase.IsAssetImportWorkerProcess()) return null;
-            #endif
-            AssetDatabase.AddObjectToAsset(_texture, this);
-
-            return _texture;
-            //  AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);
-#endif
-        }
-
-        private void ValidateTextureValues()
-        {
-            if (!_texture) return;
-            if (_texture.name != name)
-            {
-                _texture.name = name;
-            }
-            else
-            {
-                if (_texture.width != _resolution.x
-                    || _texture.height != _resolution.y 
-                    || IsHDRFormat != _HDR
-                    || _texture.mipmapCount == 1 == _generateMipmaps // mip map minimum is 1
-                   )
-                {
-#if UNITY_2022_1_OR_NEWER
-                    _texture.Reinitialize(
-                        _resolution.x,
-                        _resolution.y,
-                        SystemInfo.GetGraphicsFormat(_HDR ? DefaultFormat.HDR : DefaultFormat.LDR),
-                        _generateMipmaps);
-#else
-                    _texture.Resize(_resolution.x, _resolution.y);
-#endif
-                }
-
-#if UNITY_EDITOR
-                _texture.alphaIsTransparency = true;
-#endif
-                FillColors();
-
-                SetDirtyTexture();
-            }
-        }
-
-        #region Editor
-
-        [Conditional("UNITY_EDITOR")]
-        void SetDirtyTexture()
-        {
-#if UNITY_EDITOR
-            if (!_texture) return;
-
-            EditorUtility.SetDirty(_texture);
+            texture = AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
 #endif
         }
         
-        #endregion
-
-        public void OnAfterDeserialize()
+        Texture2D IGradientTextureForEditor.CreateTexture()
         {
+#if UNITY_EDITOR
+            
+            string assetPath = AssetDatabase.GetAssetPath(this);
+            
+            if (string.IsNullOrEmpty(assetPath) || !EditorApplication.isUpdating)
+            {
+                return null;
+            }
+            
+            // Load texture from asset
+            if (texture == null)
+            {
+                texture = AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
+            }
+            
+            // If asset had no texture create a new one
+            if (texture != null)
+            {
+#if UNITY_2018
+                texture = new Texture2D(_resolution.x, _resolution.y);
+#else
+                
+                texture = new Texture2D(resolution.x, resolution.y, hdr ? DefaultFormat.HDR : DefaultFormat.LDR,
+                        generateMipmaps ? TextureCreationFlags.MipChain : TextureCreationFlags.None) { wrapMode = TextureWrapMode.Clamp };
+#endif
+                if (texture.name != name)
+                {
+                    texture.name = name;
+                }
+            }
+            
+            // If texture could not be created return
+            if (!texture)
+            {
+                return null;
+            }
+            
+            // Validate Texture Values and sub asset state
+            ValidateTextureValues();
+            
+            if (!EditorUtility.IsPersistent(this) || AssetDatabase.IsSubAsset(texture) || AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath))
+            {
+                return null;
+            }
+            
+#if UNITY_2020_1_OR_NEWER
+            if (AssetDatabase.IsAssetImportWorkerProcess())
+            {
+                return null;
+            }
+#endif
+            AssetDatabase.AddObjectToAsset(texture, this);
+            
+            return texture;
+#endif
         }
-
+        
+        private void ValidateTextureValues()
+        {
+            if (!texture)
+            {
+                return;
+            }
+            
+            if (texture.name != name)
+            {
+                texture.name = name;
+            }
+            else
+            {
+                if (texture.width != resolution.x || texture.height != resolution.y || IsHDRFormat != hdr ||
+                    texture.mipmapCount == 1 == generateMipmaps // mip map minimum is 1
+                   )
+                {
+#if UNITY_2022_1_OR_NEWER
+                    texture.Reinitialize(resolution.x, resolution.y, SystemInfo.GetGraphicsFormat(hdr ? DefaultFormat.HDR : DefaultFormat.LDR),
+                            generateMipmaps);
+#else
+                    texture.Resize(_resolution.x, _resolution.y);
+#endif
+                }
+                
+#if UNITY_EDITOR
+                texture.alphaIsTransparency = true;
+#endif
+                FillColors();
+                SetDirtyTexture();
+            }
+        }
+        
+#region Editor
+        [Conditional("UNITY_EDITOR")]
+        private void SetDirtyTexture()
+        {
+#if UNITY_EDITOR
+            if (!texture)
+            {
+                return;
+            }
+            
+            EditorUtility.SetDirty(texture);
+#endif
+        }
+#endregion
+        
+        public void OnAfterDeserialize() {}
+        
         public void OnBeforeSerialize()
         {
 #if UNITY_EDITOR
-            if (!_texture || _texture.name == name) return;
-
-            _texture.name = name;
-
-            //AssetDatabase.SaveAssets();
-  #endif
+            if (!texture || texture.name == name)
+            {
+                return;
+            }
+            
+            texture.name = name;
+#endif
         }
     }
 }

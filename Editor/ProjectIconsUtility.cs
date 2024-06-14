@@ -13,8 +13,8 @@ namespace Packages.GradientTextureGenerator.Editor
             EditorApplication.projectWindowItemOnGUI -= ItemOnGUI;
             EditorApplication.projectWindowItemOnGUI += ItemOnGUI;
         }
-
-        static void ItemOnGUI(string guid, Rect rect)
+        
+        private static void ItemOnGUI(string guid, Rect rect)
         {
             string assetPath = AssetDatabase.GUIDToAssetPath(guid);
             
@@ -29,7 +29,7 @@ namespace Packages.GradientTextureGenerator.Editor
             GradientTexture asset = AssetDatabase.LoadAssetAtPath<GradientTexture>(assetPath);
 
             // Return if gradient or texture not valid
-            if (asset == null || !asset.GetTexture())
+            if (asset == null || !asset.Texture)
             {
                 return;
             }
@@ -38,7 +38,7 @@ namespace Packages.GradientTextureGenerator.Editor
             if (rect.height <= 30)
             {
                 rect.width = rect.height *= .9f;
-                GUI.DrawTexture(rect, asset.GetTexture());
+                GUI.DrawTexture(rect, asset.Texture);
             }
         }
     }
