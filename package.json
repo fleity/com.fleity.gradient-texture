@@ -2,16 +2,16 @@
   "name": "com.fleity.gradient-texture",
   "version": "1.1.0",
   "displayName": "Gradient Texture",
-  "description": "Unity gradient texture generator \n\nTexture2D-Gradient generated in Editor by ScriptableObject with Gradient-properties.",
+  "description": "Unity Gradient Texture Generator. \nTexture2D-Gradient generated in Editor by ScriptableObject with Gradient-properties.",
   "unity": "2018.4",
-  "documentationUrl": "https://github.com/fleity/GradientTexture/blob/main/README.md",
-  "licensesUrl": "https://github.com/fleity/GradientTexture/blob/main/LICENSE.md",
+  "documentationUrl": "https://github.com/fleity/com.fleity.gradient-texture/blob/main/README.md",
+  "licensesUrl": "https://github.com/fleity/com.fleity.gradient-texture/blob/main/LICENSE.md",
   "keywords": [
     "Texture",
     "Procedural",
     "Gradient"
   ],
-  "author": "mitay-walle <mitay-walle91@mail.ru> (https://github.com/mitay-walle), fleity (https://github.com/fleity)",
+  "author": "fleity (https://github.com/fleity)",
   "samples": [
     {
       "displayName": "Example Gradients",
@@ -24,11 +24,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/fleity/GradientTexture.git"
+    "url": "https://github.com/fleity/com.fleity.gradient-texture.git"
   },
   "bugs": {
-    "url": "https://github.com/fleity/GradientTexture/issues"
+    "url": "https://github.com/fleity/com.fleity.gradient-texture/issues"
   },
-  "homepage": "https://github.com/fleity/GradientTexture#readme",
+  "homepage": "https://github.com/fleity/com.fleity.gradient-texture#readme",
   "license": "MIT"
 }

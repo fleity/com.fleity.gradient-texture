@@ -40,22 +40,3 @@ While designing VFX using gradients you need to tweak colors and positions, acco
 Texture2D-Gradient generated dynamically during Editor-time by a ScriptableObject with Gradient-properties
 <br>I. Exposed in shader graph as Texture2D
 <br>II. faster iteration with no need to switch to Photoshop, rearrange windows, save file, reimport etc.
-
-# Summary
-- [release 1.0.6](https://github.com/mitay-walle/GradientTexture/releases/tag/1.0.6) is tested with Unity3d 2018-2022
-- RGBA
-- HDR
-- UPM package
-- [release 1.0.7](https://github.com/mitay-walle/GradientTexture/releases/tag/1.0.7) Export to PNG
-- create GradientTexture with ProjectWindow/RMB/Create/Texture/Gradient 
-- Texture2D itself appear as GradientTexture-Subasset
-- realtime editing
-- Blend 'horizontalTop' and 'horizontalBottom' Gradients with 'verticalLerp' Curve.
-- choose any resolution you want
-- drag and drop as simple texture
-- Encode to PNG for better compression and full control at import settings
-- stackable preview
-- sRGB / Linear flag
-
-
-- [release 1.1.0](https://github.com/mitay-walle/GradientTexture/releases/tag/1.0.6) Added encode to Exr / Tga, inspector uses UITK, refactor, fixed warnings and build errors
