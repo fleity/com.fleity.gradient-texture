@@ -11,9 +11,10 @@ namespace Packages.GradientTextureGenerator.Runtime
 {
     /// <summary>
     /// Main Asset, holds settings, create and change Texture2D's pixels based on gradients.
+    /// Use the static Create method instead of Scriptable Object CreateInstance to immediately initialize the texture.
     /// </summary>
     
-    // Create menu is in the editor class, that way we can immediately initialize the texture.
+    // Create menu is in the editor class, that way we can immediately initialize the texture that way too.
     public class GradientTexture : ScriptableObject, IEquatable<Texture2D>, ISerializationCallbackReceiver
     {
         [FormerlySerializedAs("_resolution")][SerializeField] private Vector2Int resolution = new Vector2Int(256, 256);
@@ -53,6 +54,21 @@ namespace Packages.GradientTextureGenerator.Runtime
                     alphaKeys = new[] { new GradientAlphaKey(1, 1) },
                     colorKeys = new[] { new GradientColorKey(Color.black, 0), new GradientColorKey(Color.white, 1) }
             };
+        }
+        
+        /// <summary>
+        /// Create new Gradient Texture scriptable object instance.
+        /// </summary>
+        /// <returns></returns>
+        public static GradientTexture Create()
+        {
+            // Create a new instance of the texture asset ScriptableObject
+            GradientTexture asset = CreateInstance<GradientTexture>();
+            
+            // Initialize the texture
+            asset.UpdateTexture();
+            
+            return asset;
         }
         
         /// <summary>

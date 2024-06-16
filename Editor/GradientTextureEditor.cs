@@ -46,14 +46,11 @@ namespace Packages.GradientTextureGenerator.Editor
         };
         
 #region Scriptable Object Create Menu Item
-        [MenuItem("Assets/Create/Texture/GradientTextureAsset")]
+        [MenuItem("Assets/Create/Texture/GradientTextureAsset", false, 0)]
         public static void CreateGradientTexture()
         {
-            // Create a new instance of the texture asset ScriptableObject
-            GradientTexture asset = CreateInstance<GradientTexture>();
-            
-            // Initialize the texture
-            asset.UpdateTexture();
+            // Create and initialize a new instance of the texture asset ScriptableObject
+            GradientTexture asset = GradientTexture.Create();
             
             // Save the ScriptableObject as a new asset
             string path = AssetDatabase.GetAssetPath(Selection.activeObject);

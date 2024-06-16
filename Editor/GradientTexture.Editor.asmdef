@@ -1,10 +1,8 @@
 {
-    "name": "GradientTextureEditorAssembly",
+    "name": "GradientTexture.Editor",
     "rootNamespace": "Packages.GradientTextureGenerator",
     "references": [
-        "GradientTextureAssembly",
-        "UnityEditor.UI",
-        "UnityEngine.UI"
+        "GUID:da0a156d200dcb2478cac8a920269a96"
     ],
     "includePlatforms": [
         "Editor"
