@@ -147,8 +147,8 @@ namespace Packages.GradientTextureGenerator.Editor
             
             // Add fields to inspector
             mainInspector.Add(new PropertyField(resolutionProp));
-            mainInspector.Add(new PropertyField(hdrProp));
-            mainInspector.Add(new PropertyField(sRGBProp));
+            mainInspector.Add(new PropertyField(hdrProp) { label = "HDR" });
+            mainInspector.Add(new PropertyField(sRGBProp) { label = "sRGB" });
             mainInspector.Add(new PropertyField(generateMipmapsProp));
             mainInspector.Add(twoGradientsField);
             mainInspector.Add(new PropertyField(horizontalTopProp));
